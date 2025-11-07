@@ -1,0 +1,162 @@
+[
+  {
+    "index": 0,
+    "timestamp": 1759770003.5002375,
+    "transactions": [
+      {
+        "batch_id": "GENESIS",
+        "action": "genesis",
+        "actor": "system",
+        "timestamp": 1759770003.5002365
+      }
+    ],
+    "previous_hash": "0",
+    "nonce": 0,
+    "hash": "398a82bc9c0998993ad8fcb5c5cf0053a672706209b2cfc3e5712bd22f82f8cf"
+  },
+  {
+    "index": 1,
+    "timestamp": 1759770039.0820284,
+    "transactions": [
+      {
+        "batch_id": "B001",
+        "action": "registered",
+        "actor": "Tia Zekhia",
+        "metadata": {
+          "product": "Laptop",
+          "quantity": 100,
+          "supplier": "Tia Zekhia"
+        },
+        "timestamp": "2025-10-06T17:00:12.348632Z"
+      }
+    ],
+    "previous_hash": "398a82bc9c0998993ad8fcb5c5cf0053a672706209b2cfc3e5712bd22f82f8cf",
+    "nonce": 2109,
+    "hash": "000d22d7d5b4d8b8d00af1b5c94d5ee5978529549743ed94a7c50eefcf943e83"
+  },
+  {
+    "index": 2,
+    "timestamp": 1759770149.8499503,
+    "transactions": [
+      {
+        "batch_id": "B001",
+        "action": "shipped",
+        "actor": "Tia Zekhia",
+        "metadata": {
+          "from": "Tia Zekhia",
+          "to": "Georges el hajj"
+        },
+        "timestamp": "2025-10-06T17:02:04.893353Z"
+      }
+    ],
+    "previous_hash": "000d22d7d5b4d8b8d00af1b5c94d5ee5978529549743ed94a7c50eefcf943e83",
+    "nonce": 3784,
+    "hash": "000d1c65b0283fe1c13d1c2d1e9730447e4567e2e52aaa82d88b1b07785d871d"
+  },
+  {
+    "index": 3,
+    "timestamp": 1759770251.8360372,
+    "transactions": [
+      {
+        "batch_id": "B001",
+        "action": "received",
+        "actor": "Georges el hajj",
+        "metadata": {
+          "from": "Tia Zekhia",
+          "to": "Georges el hajj"
+        },
+        "timestamp": "2025-10-06T17:03:33.959728Z"
+      }
+    ],
+    "previous_hash": "000d1c65b0283fe1c13d1c2d1e9730447e4567e2e52aaa82d88b1b07785d871d",
+    "nonce": 3150,
+    "hash": "000db2715d9795fad66e152b6ae7e00f65e3317df0df2f773f6a56b96cbe0f23"
+  },
+  {
+    "index": 4,
+    "timestamp": 1759770473.7632713,
+    "transactions": [
+      {
+        "batch_id": "B001",
+        "action": "delivered",
+        "actor": "Georges el hajj",
+        "metadata": {
+          "retailer": "Edward zekhia"
+        },
+        "timestamp": "2025-10-06T17:07:43.538089Z"
+      }
+    ],
+    "previous_hash": "000db2715d9795fad66e152b6ae7e00f65e3317df0df2f773f6a56b96cbe0f23",
+    "nonce": 6320,
+    "hash": "000f15aa99231424014325daee12af66b3cc0b5f64fa57927a56555b4702bf65"
+  },
+  {
+    "index": 5,
+    "timestamp": 1760200309.5768168,
+    "transactions": [
+      {
+        "batch_id": "BATCH001",
+        "action": "registered",
+        "actor": "SupplierA",
+        "metadata": {
+          "product": "WidgetX",
+          "quantity": 100
+        },
+        "timestamp": "2025-10-11T16:12:40.488951Z"
+      },
+      {
+        "batch_id": "BATCH001",
+        "action": "quality_checked",
+        "actor": "SupplierA",
+        "metadata": {
+          "result": "Passed",
+          "inspector": "Inspector1"
+        },
+        "timestamp": "2025-10-11T16:13:52.154200Z"
+      },
+      {
+        "batch_id": "BATCH001",
+        "action": "shipped",
+        "actor": "SupplierA",
+        "metadata": {
+          "from": "SupplierA",
+          "to": "DistributorX"
+        },
+        "timestamp": "2025-10-11T16:15:01.139198Z"
+      },
+      {
+        "batch_id": "BATCH001",
+        "action": "registered",
+        "actor": "SupplierA",
+        "metadata": {
+          "product": "ProductX",
+          "quantity": 100
+        },
+        "timestamp": "2025-10-11T16:24:49.925243Z"
+      },
+      {
+        "batch_id": "BATCH001",
+        "action": "quality_checked",
+        "actor": "SupplierA",
+        "metadata": {
+          "result": "Pass",
+          "inspector": "InspectorX"
+        },
+        "timestamp": "2025-10-11T16:25:39.213878Z"
+      },
+      {
+        "batch_id": "BATCH001",
+        "action": "shipped",
+        "actor": "SupplierA",
+        "metadata": {
+          "from": "SupplierA",
+          "to": "DistributorA"
+        },
+        "timestamp": "2025-10-11T16:26:20.172193Z"
+      }
+    ],
+    "previous_hash": "000f15aa99231424014325daee12af66b3cc0b5f64fa57927a56555b4702bf65",
+    "nonce": 2068,
+    "hash": "000e1916619b94ef7308a948f764129c4f21a19adc4525d9c581dcc96fabe570"
+  }
+]
