@@ -1,0 +1,185 @@
+version: '3.8'
+
+services:
+  # ==================== BLOCKCHAIN NODES ====================
+
+  blockchain1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blockchain_node_1
+    hostname: blockchain1
+    ports:
+      - "5000:5000"
+    volumes:
+      - blockchain1_data:/data
+      - ./keys:/app/keys:ro
+    environment:
+      - PORT=5000
+      - DIFFICULTY=2
+    command: ["--port", "5000", "--difficulty", "2"]
+    networks:
+      - supply_chain_network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/status', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  blockchain2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blockchain_node_2
+    hostname: blockchain2
+    ports:
+      - "5001:5000"
+    volumes:
+      - blockchain2_data:/data
+      - ./keys:/app/keys:ro
+    environment:
+      - PORT=5000
+      - DIFFICULTY=2
+    command: ["--port", "5000", "--difficulty", "2", "--bootstrap", "http://blockchain1:5000"]
+    networks:
+      - supply_chain_network
+    depends_on:
+      - blockchain1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/status', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  blockchain3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blockchain_node_3
+    hostname: blockchain3
+    ports:
+      - "5002:5000"
+    volumes:
+      - blockchain3_data:/data
+      - ./keys:/app/keys:ro
+    environment:
+      - PORT=5000
+      - DIFFICULTY=2
+    command: ["--port", "5000", "--difficulty", "2", "--bootstrap", "http://blockchain1:5000"]
+    networks:
+      - supply_chain_network
+    depends_on:
+      - blockchain1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/status', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+    # ==================== API SERVICES ====================
+
+  supplier-api:
+    build:
+      context: ../SupplierAPI/SupplierAPI
+      dockerfile: Dockerfile
+    container_name: supplier_api
+    hostname: supplier-api
+    ports:
+      - "5175:80"
+    volumes:
+      - ./keys:/app/keys:ro
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Blockchain__NodeUrl=http://blockchain1:5000
+      - Blockchain__TimeoutSeconds=30
+      - Blockchain__EnableCrypto=true
+      - Blockchain__ActorName=Supplier_A
+    networks:
+      - supply_chain_network
+    depends_on:
+      - blockchain1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/api/supplier/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  distributor-api:
+    build:
+      context: ../DistributorAPI/DistributorAPI
+      dockerfile: Dockerfile
+    container_name: distributor_api
+    hostname: distributor-api
+    ports:
+      - "5137:80"
+    volumes:
+      - ./keys:/app/keys:ro
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Blockchain__NodeUrl=http://blockchain2:5000
+      - Blockchain__TimeoutSeconds=30
+      - Blockchain__EnableCrypto=true
+      - Blockchain__ActorName=Distributor_B
+    networks:
+      - supply_chain_network
+    depends_on:
+      - blockchain2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/api/distributor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  retailer-api:
+    build:
+      context: ../RetailerAPI/RetailerAPI
+      dockerfile: Dockerfile
+    container_name: retailer_api
+    hostname: retailer-api
+    ports:
+      - "5112:80"
+    volumes:
+      - ./keys:/app/keys:ro
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Blockchain__NodeUrl=http://blockchain3:5000
+      - Blockchain__TimeoutSeconds=30
+      - Blockchain__EnableCrypto=true
+      - Blockchain__ActorName=Retailer_C
+    networks:
+      - supply_chain_network
+    depends_on:
+      - blockchain3
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/api/retailer/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+# ==================== NETWORKS ====================
+
+networks:
+  supply_chain_network:
+    driver: bridge
+
+# ==================== VOLUMES ====================
+
+volumes:
+  blockchain1_data:
+    driver: local
+  blockchain2_data:
+    driver: local
+  blockchain3_data:
+    driver: local
