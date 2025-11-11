@@ -27,7 +27,7 @@ def ts_to_iso(ts):
 
 def get_my_address():
     """Get this node's address"""
-    return f"http://localhost:{PORT}"
+    return f"http://{blockchain.hostname}:{PORT}"  # ✅ FIXED: Uses blockchain.hostname
 
 
 def broadcast(endpoint, data, exclude_self=True):
@@ -48,14 +48,24 @@ def broadcast(endpoint, data, exclude_self=True):
 
 
 def sync_with_network():
-    """Enhanced synchronization: syncs both chain and mempool"""
+    """Enhanced synchronization: repairs invalid chains and syncs mempool"""
     with lock:
         if blockchain is None:
             return
 
         print("🔄 Starting network sync...")
         my_address = get_my_address()
+
+        # CRITICAL FIX: Check our chain validity FIRST
+        current_valid, validation_msg = blockchain.is_chain_valid()
+
+        if not current_valid:
+            print(f"⚠️  LOCAL CHAIN INVALID: {validation_msg}")
+            print("🔧 Attempting to repair from network...")
+
         longest_chain = blockchain.chain
+        best_chain_valid = current_valid
+        chain_replaced = False
         max_mempool = blockchain.mempool.copy()
 
         for node in list(blockchain.nodes):
@@ -63,18 +73,39 @@ def sync_with_network():
                 continue
 
             try:
-                # Sync chain
+                # --- Sync chain ---
                 r = requests.get(f"{node}/chain", timeout=3)
                 if r.status_code == 200:
                     data = r.json()
                     remote_chain = data["chain"]
-                    valid, _ = blockchain.is_chain_valid(remote_chain)
+                    valid_remote, _ = blockchain.is_chain_valid(remote_chain)
 
-                    if len(remote_chain) > len(longest_chain) and valid:
-                        longest_chain = remote_chain
+                    # IMPROVED REPLACEMENT LOGIC:
+                    # Replace if ANY of these conditions:
+                    # (1) Our chain is invalid AND theirs is valid
+                    # (2) Both valid, theirs is longer
+                    # (3) Both same length, but ours is invalid and theirs is valid
+                    should_replace = False
+
+                    if not current_valid and valid_remote:
+                        # We're broken, they're good
+                        should_replace = True
+                        print(f"🔧 Found valid replacement chain at {node}")
+                    elif current_valid and valid_remote and len(remote_chain) > len(longest_chain):
+                        # Both good, theirs is longer
+                        should_replace = True
                         print(f"📥 Found longer valid chain at {node}")
+                    elif not current_valid and not valid_remote:
+                        # Both broken, skip
+                        print(f"⚠️  Node {node} also has invalid chain")
+                        continue
 
-                # Sync mempool
+                    if should_replace:
+                        longest_chain = remote_chain
+                        best_chain_valid = valid_remote
+                        chain_replaced = True
+
+                # --- Sync mempool ---
                 r = requests.get(f"{node}/mempool", timeout=3)
                 if r.status_code == 200:
                     remote_mempool = r.json().get("mempool", [])
@@ -82,7 +113,7 @@ def sync_with_network():
                         max_mempool = remote_mempool
                         print(f"📥 Found larger mempool at {node}")
 
-                # Sync node list
+                # --- Sync node list ---
                 r = requests.get(f"{node}/nodes", timeout=3)
                 if r.status_code == 200:
                     remote_nodes = r.json().get("nodes", [])
@@ -96,16 +127,22 @@ def sync_with_network():
             except Exception as e:
                 print(f"⚠️  Node {node} appears to be down: {e}")
 
-        if longest_chain != blockchain.chain:
+        # Apply replacement if found a better chain
+        if chain_replaced and longest_chain != blockchain.chain:
             blockchain.replace_chain(longest_chain)
-            print("✅ Chain updated from network")
+            print("✅ Chain repaired/updated from network!")
 
+            # CRITICAL: Also reload from DB to persist changes
+            if blockchain.db_file:
+                blockchain._reload_chain_from_db()
+
+        # Sync mempool if needed
         if len(max_mempool) > len(blockchain.mempool):
             blockchain.sync_mempool(max_mempool)
             print("✅ Mempool synced from network")
 
-        print(
-            f"✅ Sync complete. Chain: {len(blockchain.chain)}, Mempool: {len(blockchain.mempool)}, Nodes: {len(blockchain.nodes)}")
+        print(f"✅ Sync complete. Chain: {len(blockchain.chain)}, "
+              f"Mempool: {len(blockchain.mempool)}, Nodes: {len(blockchain.nodes)}")
 
 
 def register_with_bootstrap_nodes():
@@ -168,12 +205,11 @@ def add_transaction():
         tx_data["metadata"],
         signature=signature,
         public_key=public_key,
-        timestamp = tx_data.get("timestamp")  # <-- add this line
-
+        timestamp=tx_data.get("timestamp")
     )
 
     if result is None:
-        return jsonify({"error": "Invalid signature"}), 401
+        return jsonify({"error": "Invalid signature or validation failed"}), 401
 
     broadcast("/receive-transaction", tx_data)
     return jsonify({"message": "Transaction added"}), 201
@@ -193,11 +229,10 @@ def receive_transaction():
         signature=signature,
         public_key=public_key,
         timestamp=tx_data.get("timestamp")
-
     )
 
     if result is None:
-        return jsonify({"error": "Invalid signature"}), 401
+        return jsonify({"error": "Invalid signature or validation failed"}), 401
 
     return jsonify({"message": "Transaction received"}), 200
 
@@ -301,9 +336,12 @@ def get_nodes():
 
 @app.route("/status", methods=["GET"])
 def get_status():
+    valid, msg = blockchain.is_chain_valid()
     return jsonify({
         "node": get_my_address(),
         "chain_length": len(blockchain.chain),
+        "chain_valid": valid,
+        "validation_message": msg,
         "mempool_size": len(blockchain.mempool),
         "peers": len(blockchain.nodes),
         "difficulty": blockchain.difficulty,
@@ -312,7 +350,48 @@ def get_status():
     }), 200
 
 
-# ------------------ CRYPTO ENDPOINTS (NEW) ------------------
+# ------------------ NEW UTILITY ENDPOINTS ------------------
+@app.route("/sync", methods=["POST"])
+def force_sync():
+    """Manually trigger network sync - useful for testing and recovery"""
+    print("🔄 Manual sync triggered...")
+    sync_with_network()
+
+    valid, msg = blockchain.is_chain_valid()
+
+    return jsonify({
+        "message": "Sync completed",
+        "chain_valid": valid,
+        "validation_message": msg,
+        "chain_length": len(blockchain.chain),
+        "mempool_size": len(blockchain.mempool),
+        "peers": len(blockchain.nodes)
+    }), 200
+
+
+@app.route("/reload", methods=["POST"])
+def reload_from_db():
+    """Reload blockchain from database - useful after manual edits"""
+    if not blockchain.db_file:
+        return jsonify({"error": "Not using database mode"}), 400
+
+    print("🔄 Reloading blockchain from database...")
+
+    with lock:
+        blockchain._load_from_db()
+
+    valid, msg = blockchain.is_chain_valid()
+
+    return jsonify({
+        "message": "Blockchain reloaded from database",
+        "chain_valid": valid,
+        "validation_message": msg,
+        "chain_length": len(blockchain.chain),
+        "mempool_size": len(blockchain.mempool)
+    }), 200
+
+
+# ------------------ CRYPTO ENDPOINTS ------------------
 @app.route("/actors/register", methods=["POST"])
 def register_actor():
     """Register a new actor and generate keys"""
@@ -339,9 +418,10 @@ def list_actors():
     return jsonify({"actors": actors, "count": len(actors), "crypto_enabled": True}), 200
 
 
-# ------------------ CONSENSUS ------------------
+# ------------------ CONSENSUS & AUTO-MINING ------------------
 def periodic_consensus():
-    time.sleep(10)
+    """Periodic sync with network every 30 seconds"""
+    time.sleep(10)  # Wait for node to stabilize
     while True:
         try:
             sync_with_network()
@@ -350,13 +430,64 @@ def periodic_consensus():
         time.sleep(30)
 
 
+def auto_mining_daemon():
+    """Automatically mine when mempool reaches threshold or time interval"""
+    time.sleep(15)  # Wait for node to stabilize
+
+    MINING_THRESHOLD = 10  # Mine when mempool has 10+ transactions
+    MINING_INTERVAL = 60  # Or mine every 60 seconds if mempool not empty
+
+    last_mine_time = time.time()
+
+    print(f"⛏️  Auto-mining daemon started")
+    print(f"   - Threshold: {MINING_THRESHOLD} transactions")
+    print(f"   - Interval: {MINING_INTERVAL} seconds")
+
+    while True:
+        try:
+            current_time = time.time()
+            mempool_size = len(blockchain.mempool)
+
+            should_mine = False
+            reason = ""
+
+            # Mine if threshold reached
+            if mempool_size >= MINING_THRESHOLD:
+                should_mine = True
+                reason = f"Mempool threshold ({MINING_THRESHOLD}) reached"
+
+            # Mine if enough time passed and mempool not empty
+            elif mempool_size > 0 and (current_time - last_mine_time) >= MINING_INTERVAL:
+                should_mine = True
+                reason = f"Mining interval ({MINING_INTERVAL}s) elapsed"
+
+            if should_mine:
+                print(f"⛏️  {reason}. Mining block with {mempool_size} transactions...")
+                block = blockchain.mine_block()
+
+                if block:
+                    print(f"✅ Auto-mined block #{block.index} with {len(block.transactions)} transactions")
+                    broadcast("/receive-block", block.to_dict())
+                    last_mine_time = current_time
+                else:
+                    print("⚠️  No transactions to mine")
+
+        except Exception as e:
+            print(f"❌ Auto-mining error: {e}")
+
+        time.sleep(10)  # Check every 10 seconds
+
+
 # ------------------ MAIN ------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--hostname", type=str, default="localhost",
+                        help="Node hostname (for Docker use container name)")
     parser.add_argument("--bootstrap", type=str, default="")
     parser.add_argument("--difficulty", type=int, default=2)
     parser.add_argument("--no-crypto", action="store_true", help="Disable cryptographic signatures")
+    parser.add_argument("--no-auto-mine", action="store_true", help="Disable automatic mining")
     args = parser.parse_args()
 
     PORT = args.port
@@ -368,26 +499,42 @@ if __name__ == "__main__":
     db_file = f"blockchain_{PORT}.db"
     blockchain = Blockchain(
         port=PORT,
+        hostname=args.hostname,
         db_file=db_file,
         difficulty=args.difficulty,
         bootstrap_nodes=bootstrap_nodes,
-        enable_crypto=not args.no_crypto
+        enable_crypto=not args.no_crypto,
+        max_mempool_size=1000
     )
 
     print(f"\n{'=' * 60}")
     print(f"🚀 BLOCKCHAIN NODE STARTING")
     print(f"{'=' * 60}")
     print(f"📍 Port: {PORT}")
+    print(f"🏠 Hostname: {blockchain.hostname}")  # Show hostname for debugging
     print(f"💾 Database: {db_file}")
     print(f"⛏️  Difficulty: {blockchain.difficulty}")
     print(f"🔐 Cryptography: {'ENABLED' if blockchain.enable_crypto else 'DISABLED'}")
+    print(f"⛏️  Auto-mining: {'ENABLED' if not args.no_auto_mine else 'DISABLED'}")
     print(f"🌐 Bootstrap: {bootstrap_nodes if bootstrap_nodes else 'None (Standalone)'}")
-    print(f"📊 Chain: {len(blockchain.chain)}")
-    print(f"📦 Mempool: {len(blockchain.mempool)}")
-    print(f"👥 Peers: {len(blockchain.nodes)}")
+    print(f"📊 Chain: {len(blockchain.chain)} blocks")
+    print(f"📦 Mempool: {len(blockchain.mempool)} transactions")
+    print(f"👥 Peers: {len(blockchain.nodes)} connected")
+
+    # Validate chain on startup
+    valid, msg = blockchain.is_chain_valid()
+    print(f"🔍 Chain Status: {'✅ VALID' if valid else '❌ INVALID'}")
+    if not valid:
+        print(f"   ⚠️  {msg}")
+        print(f"   🔧 Will attempt auto-repair on next sync cycle")
+
     print(f"{'=' * 60}\n")
 
+    # Start background daemons
     threading.Thread(target=periodic_consensus, daemon=True).start()
+
+    if not args.no_auto_mine:
+        threading.Thread(target=auto_mining_daemon, daemon=True).start()
 
     if bootstrap_nodes:
         threading.Thread(target=register_with_bootstrap_nodes, daemon=True).start()

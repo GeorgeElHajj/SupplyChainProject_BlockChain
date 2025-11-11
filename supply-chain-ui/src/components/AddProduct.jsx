@@ -1,15 +1,24 @@
-import { useState } from 'react';
+import {useEffect, useState} from 'react';
 import { api } from '../api/api';
+import { useActors } from '../hooks/useActors';
 
 function AddProduct() {
+  const { suppliers, loading: actorsLoading } = useActors();
+
   const [formData, setFormData] = useState({
     BatchId: '',
     ProductName: '',
     Quantity: '',
-    Supplier: 'Supplier_A'
+    Supplier: ''
   });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+console.log(formData);
+ useEffect(() => {
+    if (suppliers.length > 0 && !formData.Supplier) {
+      setFormData(prev => ({ ...prev, Supplier: suppliers[0].value }));
+    }
+  }, [suppliers]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,22 +26,34 @@ function AddProduct() {
     setMessage('');
 
     try {
-      await api.addProduct({
-        ...formData,
-        Quantity: parseInt(formData.Quantity)
-      });
+      const payload = {
+        BatchId: formData.BatchId,
+        ProductName: formData.ProductName,
+        Quantity: parseInt(formData.Quantity),
+        Supplier: formData.Supplier
+      };
 
-      // Mine block
+      await api.addProduct(payload);
       await api.mine(5000);
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       setMessage('✅ Product added and block mined successfully!');
-      setFormData({ BatchId: '', ProductName: '', Quantity: '', Supplier: 'Supplier_A' });
+      setFormData({
+        BatchId: '',
+        ProductName: '',
+        Quantity: '',
+        Supplier: suppliers[0]?.value || ''
+      });
     } catch (error) {
-      setMessage('❌ Failed to add product: ' + error.message);
+      setMessage('❌ Failed: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
   };
+
+  if (actorsLoading) {
+    return <div className="loading">Loading actors...</div>;
+  }
 
   return (
     <div className="form-container">
@@ -73,16 +94,22 @@ function AddProduct() {
         </div>
 
         <div className="form-group">
-          <label>Supplier</label>
-          <input
-            type="text"
+          <label>Supplier *</label>
+          <select
             value={formData.Supplier}
             onChange={(e) => setFormData({ ...formData, Supplier: e.target.value })}
             required
-          />
+          >
+            {suppliers.length === 0 && <option value="">No suppliers available</option>}
+            {suppliers.map(supplier => (
+              <option key={supplier.value} value={supplier.value}>
+                {supplier.label}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <button type="submit" disabled={loading} className="btn-primary">
+        <button type="submit" disabled={loading || suppliers.length === 0} className="btn-primary">
           {loading ? 'Adding...' : 'Add Product'}
         </button>
       </form>

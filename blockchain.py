@@ -46,14 +46,17 @@ class Block:
 
 # -------------------- BLOCKCHAIN --------------------
 class Blockchain:
-    def __init__(self, port=None, db_file=None, difficulty=2, bootstrap_nodes=None, enable_crypto=True):
+    def __init__(self, port=None, db_file=None, difficulty=2, bootstrap_nodes=None,
+                 enable_crypto=True, max_mempool_size=1000, hostname=None):
         self.db_file = db_file
         self.chain = []
         self.mempool = []
         self.nodes = set()
         self.port = port
+        self.hostname = hostname or "localhost"  # Use Docker hostname if provided
         self.difficulty = difficulty
         self.bootstrap_nodes = bootstrap_nodes or []
+        self.max_mempool_size = max_mempool_size
 
         # NEW: Cryptographic security
         self.enable_crypto = enable_crypto
@@ -109,6 +112,21 @@ class Blockchain:
             rows = c.fetchall()
             self.nodes = set([row[0] for row in rows])
 
+    def _reload_chain_from_db(self):
+        """Reload chain from database after replacement"""
+        if not self.db_file:
+            return
+
+        with sqlite3.connect(self.db_file) as conn:
+            c = conn.cursor()
+
+            # Clear and reload chain
+            c.execute("SELECT block FROM chain ORDER BY idx")
+            rows = c.fetchall()
+            self.chain = [json.loads(row[0]) for row in rows]
+
+            print(f"🔄 Reloaded {len(self.chain)} blocks from database")
+
     def _save_block_to_db(self, block):
         with sqlite3.connect(self.db_file) as conn:
             c = conn.cursor()
@@ -156,15 +174,61 @@ class Blockchain:
         else:
             self._save_json(self.chain_file, self.chain)
 
+    # -------------------- Transaction Validation --------------------
+    def validate_transaction_order(self, batch_id, action, actor):
+        """
+        Validate transaction follows correct order:
+        registered -> quality_checked -> shipped -> received -> stored -> delivered -> received_retail -> sold
+
+        Checks BOTH blockchain (mined) AND mempool (pending) for prerequisites.
+        """
+        # Get existing actions from BLOCKCHAIN
+        history = self.get_history(batch_id)
+        existing_actions = [tx['action'] for tx in history]
+
+        # ALSO check MEMPOOL for pending transactions (not yet mined)
+        mempool_actions = [tx['action'] for tx in self.mempool if tx['batch_id'] == batch_id]
+
+        # Combine both sources
+        all_actions = existing_actions + mempool_actions
+
+        # Define valid state transitions
+        valid_transitions = {
+            'registered': [],  # Can always register
+            'quality_checked': ['registered'],
+            'shipped': ['registered', 'quality_checked'],
+            'received': ['shipped'],
+            'stored': ['received'],
+            'delivered': ['stored'],
+            'received_retail': ['delivered'],
+            'sold': ['received_retail']
+        }
+
+        # Check if prerequisites are met
+        required_previous = valid_transitions.get(action, [])
+
+        if required_previous:
+            # At least one required action must exist (in blockchain OR mempool)
+            has_prerequisite = any(req in all_actions for req in required_previous)
+            if not has_prerequisite:
+                return False, f"Cannot {action} without first: {', '.join(required_previous)}"
+
+        # Check for duplicate actions (in both blockchain and mempool)
+        if action != 'registered' and action in all_actions:
+            return False, f"Action {action} already performed for batch {batch_id}"
+
+        return True, "Valid transaction"
+
     # -------------------- Transactions (WITH SIGNATURE VERIFICATION) --------------------
     def add_transaction(self, batch_id, action, actor, metadata, signature=None, public_key=None, timestamp=None):
         """
-        Add transaction with optional signature verification.
+        Add transaction with optional signature verification and business logic validation.
 
         Rules:
         - If a signature is provided, the transaction must include a client-supplied 'timestamp'
           and we will NOT mutate any signed fields before verification.
         - If no signature is provided, we will add a server-side timestamp for bookkeeping.
+        - Validates transaction order (e.g., can't ship before registering)
         """
         # Build tx exactly as the client intended (do not add/modify fields before verify)
         tx = {
@@ -174,7 +238,7 @@ class Blockchain:
             "metadata": metadata
         }
 
-        # Signed tx MUST provide timestamp to avoid later verification failures (e.g., is_chain_valid)
+        # Signed tx MUST provide timestamp to avoid later verification failures
         if signature:
             if timestamp is None:
                 print("❌ Signed transaction missing 'timestamp'. Rejecting.")
@@ -184,25 +248,38 @@ class Blockchain:
             # For unsigned tx, it's safe to add a server timestamp
             tx["timestamp"] = timestamp if timestamp is not None else datetime.utcnow().isoformat()
 
-        # Attach signature/public_key if present (verify_transaction will ignore public_key)
+        # Attach signature/public_key if present
         if signature:
             tx["signature"] = signature
         if public_key:
             tx["public_key"] = public_key
 
-        # IMPORTANT: Verify BEFORE any further mutation
+        # STEP 1: Validate transaction order (business logic)
+        valid, msg = self.validate_transaction_order(batch_id, action, actor)
+        if not valid:
+            print(f"❌ Transaction validation failed: {msg}")
+            return None
+
+        # STEP 2: Verify signature if present
         if self.enable_crypto and signature:
             if not verify_transaction(tx, self.crypto_manager):
                 print(f"❌ Invalid signature for transaction from {actor}")
                 return None
             print(f"✅ Signature verified for {actor}")
 
-        # Store in mempool
+        # STEP 3: Check mempool size and auto-mine if needed
+        if len(self.mempool) >= self.max_mempool_size:
+            print(f"⚠️  Mempool full ({self.max_mempool_size}). Auto-mining triggered...")
+            self.mine_block()
+
+        # STEP 4: Store in mempool
         self.mempool.append(tx)
         if self.db_file:
             self._save_tx_to_db(tx)
         else:
             self._save_json(self.mempool_file, self.mempool)
+
+        print(f"✅ Transaction added: {action} for {batch_id} by {actor}")
         return tx
 
     # -------------------- Mining --------------------
@@ -256,7 +333,6 @@ class Blockchain:
         with lock:
             existing_txs = set()
             for tx in self.mempool:
-                # guard if any historical tx lacks timestamp
                 ts = tx.get("timestamp", "")
                 tx_sig = f"{tx['batch_id']}_{tx['action']}_{ts}"
                 existing_txs.add(tx_sig)
@@ -283,7 +359,7 @@ class Blockchain:
     # -------------------- Nodes --------------------
     def get_my_address(self):
         """Return this node's address"""
-        return f"http://localhost:{self.port}"
+        return f"http://{self.hostname}:{self.port}"
 
     def add_node(self, address):
         """Add a node to the network - CRITICAL: Don't add ourselves"""
@@ -315,22 +391,36 @@ class Blockchain:
 
     # -------------------- Verification --------------------
     def is_chain_valid(self, chain=None):
+        """Validate blockchain integrity"""
         chain_to_check = chain if chain else self.chain
+
+        if len(chain_to_check) == 0:
+            return True, "Empty chain"
+
         for i in range(1, len(chain_to_check)):
             prev = chain_to_check[i - 1]
             curr = chain_to_check[i]
-            block_obj = Block(curr["index"], curr["timestamp"], curr["transactions"],
-                              curr["previous_hash"], curr["nonce"])
 
-            if curr["previous_hash"] != prev["hash"] or block_obj.compute_hash() != curr["hash"]:
-                return False, f"Invalid block at index {i}"
+            # Reconstruct block to verify hash
+            block_obj = Block(
+                curr["index"],
+                curr["timestamp"],
+                curr["transactions"],
+                curr["previous_hash"],
+                curr["nonce"]
+            )
 
-            # Signatures were already verified when added to mempool
-            # Block hash provides cryptographic proof of integrity
-            # No need to re-verify signatures here
+            # Check previous hash linkage
+            if curr["previous_hash"] != prev["hash"]:
+                return False, f"Invalid previous_hash at block {i}"
+
+            # Check block hash
+            if block_obj.compute_hash() != curr["hash"]:
+                return False, f"Invalid block hash at block {i}"
 
         return True, "Chain is valid"
-    # -------------------- Actor Management (NEW) --------------------
+
+    # -------------------- Actor Management --------------------
     def register_actor(self, actor_name):
         """Register a new actor and generate keys"""
         if not self.enable_crypto:
@@ -347,6 +437,7 @@ class Blockchain:
 
     # -------------------- Batch History --------------------
     def get_history(self, batch_id):
+        """Get complete history for a batch"""
         history = []
         for block in self.chain:
             for tx in block["transactions"]:
@@ -354,10 +445,9 @@ class Blockchain:
                     tx_copy = tx.copy()
                     tx_copy["block_timestamp"] = datetime.fromisoformat(block["timestamp"]).timestamp()
 
-                    # NEW: Mark signature status based on whether signature exists
-                    # Don't re-verify - trust the block hash for integrity
+                    # Mark signature status
                     if self.enable_crypto and "signature" in tx_copy:
-                        tx_copy["signature_valid"] = True  # Changed from verify_transaction
+                        tx_copy["signature_valid"] = True
                         tx_copy["has_signature"] = True
                     else:
                         tx_copy["signature_valid"] = None
@@ -365,6 +455,7 @@ class Blockchain:
 
                     history.append(tx_copy)
         return history
+
     # -------------------- Bootstrap --------------------
     def bootstrap(self):
         """Called on startup to join the network"""

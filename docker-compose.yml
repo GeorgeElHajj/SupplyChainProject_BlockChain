@@ -13,11 +13,11 @@ services:
       - "5000:5000"
     volumes:
       - blockchain1_data:/data
-      - ./keys:/app/keys:ro
+      - ./keys:/app/keys:rw
     environment:
       - PORT=5000
       - DIFFICULTY=2
-    command: ["--port", "5000", "--difficulty", "2"]
+    command: ["--port", "5000", "--hostname", "blockchain1", "--difficulty", "2"]
     networks:
       - supply_chain_network
     healthcheck:
@@ -38,11 +38,11 @@ services:
       - "5001:5000"
     volumes:
       - blockchain2_data:/data
-      - ./keys:/app/keys:ro
+      - ./keys:/app/keys:rw
     environment:
       - PORT=5000
       - DIFFICULTY=2
-    command: ["--port", "5000", "--difficulty", "2", "--bootstrap", "http://blockchain1:5000"]
+    command: ["--port", "5000", "--hostname", "blockchain2", "--difficulty", "2", "--bootstrap", "http://blockchain1:5000"]
     networks:
       - supply_chain_network
     depends_on:
@@ -65,11 +65,11 @@ services:
       - "5002:5000"
     volumes:
       - blockchain3_data:/data
-      - ./keys:/app/keys:ro
+      - ./keys:/app/keys:rw
     environment:
       - PORT=5000
       - DIFFICULTY=2
-    command: ["--port", "5000", "--difficulty", "2", "--bootstrap", "http://blockchain1:5000"]
+    command: ["--port", "5000", "--hostname", "blockchain3", "--difficulty", "2", "--bootstrap", "http://blockchain1:5000,http://blockchain2:5000"]
     networks:
       - supply_chain_network
     depends_on:
@@ -93,7 +93,7 @@ services:
     ports:
       - "5175:80"
     volumes:
-      - ./keys:/app/keys:ro
+      - ./keys:/app/keys:rw
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Blockchain__NodeUrl=http://blockchain1:5000
@@ -121,7 +121,7 @@ services:
     ports:
       - "5137:80"
     volumes:
-      - ./keys:/app/keys:ro
+      - ./keys:/app/keys:rw
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Blockchain__NodeUrl=http://blockchain2:5000
@@ -149,7 +149,7 @@ services:
     ports:
       - "5112:80"
     volumes:
-      - ./keys:/app/keys:ro
+      - ./keys:/app/keys:rw
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Blockchain__NodeUrl=http://blockchain3:5000

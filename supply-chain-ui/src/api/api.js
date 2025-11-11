@@ -4,6 +4,7 @@ const SUPPLIER_API = 'http://localhost:5175/api/supplier';
 const DISTRIBUTOR_API = 'http://localhost:5137/api/distributor';
 const RETAILER_API = 'http://localhost:5112/api/retailer';
 const BLOCKCHAIN_API = 'http://localhost:5000';
+const ADMIN_API = 'http://localhost:5500/admin';
 
 export const api = {
   // Supplier operations
@@ -25,4 +26,8 @@ export const api = {
   // Blockchain operations
   mine: (port) => axios.post(`http://localhost:${port}/mine`),
   getChain: () => axios.get(`${BLOCKCHAIN_API}/chain`),
+
+    // Admin operations (NEW)
+  getActorsByRole: (role) => axios.get(`${ADMIN_API}/actors/by-role/${role}`),
+  getAllActors: () => axios.get(`${ADMIN_API}/actors`),
 };
