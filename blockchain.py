@@ -174,11 +174,12 @@ class Blockchain:
         else:
             self._save_json(self.chain_file, self.chain)
 
-    # -------------------- Transaction Validation --------------------
+    # -------------------- Transaction Validation (FIXED) --------------------
     def validate_transaction_order(self, batch_id, action, actor):
         """
-        Validate transaction follows correct order:
-        registered -> quality_checked -> shipped -> received -> stored -> delivered -> received_retail -> sold
+        Validate transaction follows STRICT SEQUENTIAL order:
+        1. registered -> 2. quality_checked -> 3. shipped -> 4. received ->
+        5. stored -> 6. delivered -> 7. received_retail -> 8. sold
 
         Checks BOTH blockchain (mined) AND mempool (pending) for prerequisites.
         """
@@ -192,31 +193,35 @@ class Blockchain:
         # Combine both sources
         all_actions = existing_actions + mempool_actions
 
-        # Define valid state transitions
-        valid_transitions = {
-            'registered': [],  # Can always register
-            'quality_checked': ['registered'],
-            'shipped': ['registered', 'quality_checked'],
-            'received': ['shipped'],
-            'stored': ['received'],
-            'delivered': ['stored'],
-            'received_retail': ['delivered'],
-            'sold': ['received_retail']
+        # Define STRICT sequential order - each step requires the EXACT previous step
+        strict_sequence = {
+            'registered': None,  # Step 1: Can always register (no prerequisite)
+            'quality_checked': 'registered',  # Step 2: Must have Step 1
+            'shipped': 'quality_checked',  # Step 3: Must have Step 2
+            'received': 'shipped',  # Step 4: Must have Step 3
+            'stored': 'received',  # Step 5: Must have Step 4
+            'delivered': 'stored',  # Step 6: Must have Step 5
+            'received_retail': 'delivered',  # Step 7: Must have Step 6
+            'sold': 'received_retail'  # Step 8: Must have Step 7
         }
 
-        # Check if prerequisites are met
-        required_previous = valid_transitions.get(action, [])
-
-        if required_previous:
-            # At least one required action must exist (in blockchain OR mempool)
-            has_prerequisite = any(req in all_actions for req in required_previous)
-            if not has_prerequisite:
-                return False, f"Cannot {action} without first: {', '.join(required_previous)}"
-
         # Check for duplicate actions (in both blockchain and mempool)
-        if action != 'registered' and action in all_actions:
-            return False, f"Action {action} already performed for batch {batch_id}"
+        if action in all_actions:
+            return False, f"Action '{action}' already performed for batch {batch_id}"
 
+        # Validate action is in the allowed sequence
+        if action not in strict_sequence:
+            return False, f"Invalid action '{action}'. Not in allowed sequence."
+
+        # Check if prerequisite is met
+        required_previous = strict_sequence[action]
+
+        if required_previous is not None:
+            # EXACT previous step MUST exist
+            if required_previous not in all_actions:
+                return False, f"Cannot perform '{action}' without first completing '{required_previous}'"
+
+        # SUCCESS: All validations passed
         return True, "Valid transaction"
 
     # -------------------- Transactions (WITH SIGNATURE VERIFICATION) --------------------

@@ -167,6 +167,65 @@ services:
       retries: 3
       start_period: 40s
     restart: unless-stopped
+# ==================== ADMIN API ====================
+
+  admin-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    container_name: admin_api
+    hostname: admin-api
+    ports:
+      - "5500:5500"
+    volumes:
+      - ./keys:/app/keys:rw
+      - admin_data:/app/data
+    environment:
+      - FLASK_ENV=production
+      - FLASK_APP=admin_api.py
+    networks:
+      - supply_chain_network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5500/admin/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # ==================== REACT FRONTEND ====================
+
+  frontend:
+    build:
+      context: ./supply-chain-ui
+      dockerfile: Dockerfile
+    container_name: supply_chain_frontend
+    hostname: frontend
+    ports:
+      - "3010:80"
+    environment:
+      - REACT_APP_BLOCKCHAIN_API=http://localhost:5000
+      - REACT_APP_ADMIN_API=http://localhost:5500
+      - REACT_APP_SUPPLIER_API=http://localhost:5175
+      - REACT_APP_DISTRIBUTOR_API=http://localhost:5137
+      - REACT_APP_RETAILER_API=http://localhost:5112
+    networks:
+      - supply_chain_network
+    depends_on:
+      - blockchain1
+      - blockchain2
+      - blockchain3
+      - admin-api
+      - supplier-api
+      - distributor-api
+      - retailer-api
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
 # ==================== NETWORKS ====================
 
@@ -182,4 +241,6 @@ volumes:
   blockchain2_data:
     driver: local
   blockchain3_data:
+    driver: local
+  admin_data:
     driver: local

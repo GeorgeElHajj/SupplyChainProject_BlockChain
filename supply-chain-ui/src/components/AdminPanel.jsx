@@ -96,7 +96,7 @@ function AdminPanel() {
         <h1>⚙️ Admin Panel</h1>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="btn-primary"
+          className="btn-primary BTN"
         >
           <Plus size={20} /> Add New User
         </button>

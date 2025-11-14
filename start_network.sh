@@ -28,7 +28,7 @@ sleep 2
 
 # Start Node 3 (connects to Node 1 and discovers Node 2)
 echo "Starting Node 3 on port 5002..."
-python blockchain_service.py --port 5002 --difficulty 2 --bootstrap "http://localhost:5000" > node3.log 2>&1 &
+pythondi blockchain_service.py --port 5002 --difficulty 2 --bootstrap "http://localhost:5000" > node3.log 2>&1 &
 NODE3_PID=$!
 echo "✅ Node 3 PID: $NODE3_PID"
 

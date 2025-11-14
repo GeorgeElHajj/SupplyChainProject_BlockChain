@@ -192,6 +192,9 @@ body {
   outline: none;
   border-color: #667eea;
 }
+.BTN{
+  width: 20% !important;
+}
 
 .btn-primary {
   width: 100%;
@@ -204,8 +207,11 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
 }
-
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
@@ -950,5 +956,686 @@ body {
   .modal-content {
     width: 95%;
     padding: 1.5rem;
+  }
+}
+/* BlockchainExplorer.css */
+
+.blockchain-explorer {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header */
+.explorer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-title h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #2c3e50;
+}
+
+.header-title p {
+  margin: 0.25rem 0 0 0;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.btn-refresh {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.3s;
+}
+
+.btn-refresh:hover {
+  background: #2980b9;
+}
+
+/* Loading */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem;
+  color: #7f8c8d;
+}
+
+.loading-container .spin {
+  animation: spin 1s linear infinite;
+  color: #3498db;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Chain Status */
+.chain-status {
+  margin-bottom: 2rem;
+}
+
+.status-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: 12px;
+  font-size: 1rem;
+}
+
+.status-card.valid {
+  background: #d4edda;
+  border: 2px solid #28a745;
+  color: #155724;
+}
+
+.status-card.invalid {
+  background: #f8d7da;
+  border: 2px solid #dc3545;
+  color: #721c24;
+}
+
+.status-card h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.25rem;
+}
+
+.status-card p {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Statistics Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  transition: all 0.3s;
+}
+
+.stat-card:hover {
+  border-color: #3498db;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+}
+
+.stat-card svg {
+  color: #3498db;
+}
+
+.stat-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  margin: 0.25rem 0 0 0;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.btn-secondary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-secondary:hover {
+  border-color: #3498db;
+  color: #3498db;
+}
+
+/* Mempool Section */
+.mempool-section {
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.mempool-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem 0;
+  color: #856404;
+}
+
+.mempool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.mempool-tx {
+  background: white;
+  border: 2px solid #ffc107;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.tx-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tx-icon {
+  font-size: 1.5rem;
+}
+
+.tx-header strong {
+  display: block;
+  color: #2c3e50;
+}
+
+.tx-batch {
+  display: block;
+  font-size: 0.75rem;
+  color: #7f8c8d;
+}
+
+.tx-details p {
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.signature-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  background: #d4edda;
+  color: #155724;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  margin-top: 0.5rem;
+}
+
+.signature-badge.verified {
+  background: #28a745;
+  color: white;
+}
+
+.signature-badge.missing {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Blockchain Section */
+.blockchain-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1.5rem 0;
+  color: #2c3e50;
+}
+
+.chain-container {
+  position: relative;
+}
+
+/* Block Card */
+.block-card {
+  background: white;
+  border: 3px solid #3498db;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.block-card:hover {
+  box-shadow: 0 8px 24px rgba(52, 152, 219, 0.2);
+}
+
+.block-card.genesis {
+  border-color: #9b59b6;
+  background: linear-gradient(135deg, #fff 0%, #f3e5f5 100%);
+}
+
+/* Block Header */
+.block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.block-card.genesis .block-header {
+  background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+}
+
+.block-header:hover {
+  background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
+}
+
+.block-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.block-title h3 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.block-tx-count {
+  display: block;
+  font-size: 0.85rem;
+  opacity: 0.9;
+  margin-top: 0.25rem;
+}
+
+.expand-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.expand-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Block Summary */
+.block-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.summary-item {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.summary-item svg {
+  color: #3498db;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+.summary-item .label {
+  display: block;
+  font-size: 0.75rem;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.hash {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: #2c3e50;
+  background: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+/* Block Expanded */
+.block-expanded {
+  padding: 1.5rem;
+}
+
+.full-hashes {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.hash-item {
+  margin-bottom: 1rem;
+}
+
+.hash-item:last-child {
+  margin-bottom: 0;
+}
+
+.hash-item strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
+}
+
+.full-hash {
+  display: block;
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: #555;
+  background: white;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+  word-break: break-all;
+}
+
+/* Transactions Section */
+.transactions-section h4 {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+}
+
+.transactions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.transaction-card {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.transaction-card:hover {
+  border-color: #3498db;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
+}
+
+.transaction-card .tx-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.tx-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #3498db;
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+
+.tx-icon-large {
+  font-size: 2rem;
+}
+
+.tx-info {
+  flex: 1;
+}
+
+.tx-info h5 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.tx-batch-id {
+  display: block;
+  font-size: 0.75rem;
+  color: #7f8c8d;
+  margin-top: 0.25rem;
+}
+
+.tx-body {
+  padding: 1rem;
+}
+
+.tx-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.tx-field:last-child {
+  border-bottom: none;
+}
+
+.tx-field strong {
+  color: #2c3e50;
+  min-width: 120px;
+}
+
+.metadata {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.metadata-item {
+  display: flex;
+  gap: 0.5rem;
+  background: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.metadata-item .key {
+  font-weight: bold;
+  color: #7f8c8d;
+}
+
+.metadata-item .value {
+  color: #2c3e50;
+}
+
+/* Signature Details */
+.signature-details {
+  margin-top: 1rem;
+  border: 2px solid #28a745;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.signature-details summary {
+  padding: 0.75rem 1rem;
+  background: #d4edda;
+  color: #155724;
+  cursor: pointer;
+  font-weight: bold;
+  user-select: none;
+}
+
+.signature-details summary:hover {
+  background: #c3e6cb;
+}
+
+.signature-content {
+  padding: 1rem;
+  background: #f8f9fa;
+}
+
+.signature-content p {
+  margin: 0.75rem 0 0.25rem 0;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.signature-code {
+  display: block;
+  font-family: 'Courier New', monospace;
+  font-size: 0.7rem;
+  color: #555;
+  background: white;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+  word-break: break-all;
+  margin-bottom: 0.75rem;
+}
+
+/* No Transactions */
+.no-transactions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #7f8c8d;
+}
+
+.no-transactions svg {
+  margin-bottom: 1rem;
+}
+
+/* Raw Data */
+.raw-data {
+  margin-top: 1.5rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.raw-data summary {
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  color: #2c3e50;
+  cursor: pointer;
+  font-weight: bold;
+  user-select: none;
+}
+
+.raw-data summary:hover {
+  background: #e9ecef;
+}
+
+.json-viewer {
+  margin: 0;
+  padding: 1rem;
+  background: #2c3e50;
+  color: #ecf0f1;
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  overflow-x: auto;
+  max-height: 400px;
+  line-height: 1.6;
+}
+
+/* Chain Link */
+.chain-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0;
+}
+
+.arrow-down {
+  font-size: 2rem;
+  color: #3498db;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.link-text {
+  font-size: 0.75rem;
+  color: #7f8c8d;
+  margin-top: 0.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .blockchain-explorer {
+    padding: 1rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .block-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .mempool-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .transaction-card .tx-header {
+    flex-wrap: wrap;
+  }
+
+  .tx-field {
+    flex-direction: column;
+    gap: 0.5rem;
   }
 }

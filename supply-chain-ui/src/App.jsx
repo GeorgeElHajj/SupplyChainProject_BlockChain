@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { Package, CheckCircle, Truck, Warehouse, Store, Search,Settings  } from 'lucide-react';
+import { Package, CheckCircle, Truck, Warehouse, Store, Search,Settings ,Layers } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AddProduct from './components/AddProduct';
 import QualityCheck from './components/QualityCheck';
@@ -12,6 +12,7 @@ import SellProduct from './components/SellProduct';
 import TrackBatch from './components/TrackBatch';
 import './App.css';
 import AdminPanel from "./components/AdminPanel";
+import BlockchainExplorer from "./components/Blockchainexplorer.jsx";
 
 function App() {
   return (
@@ -48,6 +49,7 @@ function App() {
         <div className="nav-section">
           <h3>⚙️ Admin</h3>
           <Link to="/admin"><Settings size={18}/> User Management</Link>
+          <Link to="/blockchain"><Layers size={18}/> Blockchain Explorer</Link>
         </div>
       </nav>
       <main className="content">
@@ -63,6 +65,8 @@ function App() {
           <Route path="/retailer/sell" element={<SellProduct/>}/>
           <Route path="/track" element={<TrackBatch/>}/>
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/blockchain" element={<BlockchainExplorer />} />
+
         </Routes>
       </main>
     </div>

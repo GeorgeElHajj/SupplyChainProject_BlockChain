@@ -76,15 +76,15 @@ echo "============================================================"
 echo ""
 
 echo "Testing Supplier API (Port 5175)..."
-http_test "http://localhost:5175/health" "GET" "" "200"
+http_test "http://localhost:5175/api/supplier/health" "GET" "" "200"
 test_result $? "Supplier API is running"
 
 echo "Testing Distributor API (Port 5137)..."
-http_test "http://localhost:5137/health" "GET" "" "200"
+http_test "http://localhost:5137/api/distributor/health" "GET" "" "200"
 test_result $? "Distributor API is running"
 
 echo "Testing Retailer API (Port 5112)..."
-http_test "http://localhost:5112/health" "GET" "" "200"
+http_test "http://localhost:5112/api/retailer/health" "GET" "" "200"
 test_result $? "Retailer API is running"
 
 echo ""
@@ -93,13 +93,22 @@ echo "  PHASE 3: BLOCKCHAIN NETWORK CONNECTIVITY"
 echo "============================================================"
 echo ""
 
+echo "Waiting for peer discovery..."
+for i in {1..10}; do
+    PEERS_NODE1=$(curl -s http://localhost:5000/nodes 2>/dev/null | jq '.count')
+    if [ "$PEERS_NODE1" -ge 2 ]; then
+        break
+    fi
+    sleep 1
+done
+
 echo "Checking peer discovery..."
-PEERS_NODE1=$(curl -s http://localhost:5000/nodes 2>/dev/null | grep -o "localhost" | wc -l)
 if [ "$PEERS_NODE1" -ge 2 ]; then
-    test_result 0 "Node 1 has discovered peers"
+    test_result 0 "Node 1 has discovered peers ($PEERS_NODE1 peers found)"
 else
     test_result 1 "Node 1 peer discovery issue (has $PEERS_NODE1 peers, expected 2)"
 fi
+
 
 echo "Checking chain synchronization..."
 CHAIN1=$(curl -s http://localhost:5000/chain 2>/dev/null | grep -o '"length":[0-9]*' | grep -o '[0-9]*')

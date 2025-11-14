@@ -27,7 +27,7 @@ def ts_to_iso(ts):
 
 def get_my_address():
     """Get this node's address"""
-    return f"http://{blockchain.hostname}:{PORT}"  # ✅ FIXED: Uses blockchain.hostname
+    return f"http://{blockchain.hostname}:{PORT}"
 
 
 def broadcast(endpoint, data, exclude_self=True):
@@ -186,7 +186,7 @@ def register_with_bootstrap_nodes():
     print(f"✅ Node ready! Connected to {len(blockchain.nodes)} peers\n")
 
 
-# ------------------ ROUTES ------------------
+# ------------------ ROUTES (FIXED) ------------------
 @app.route("/add-transaction", methods=["POST"])
 def add_transaction():
     tx_data = request.get_json()
@@ -198,6 +198,7 @@ def add_transaction():
     signature = tx_data.get("signature")
     public_key = tx_data.get("public_key")
 
+    # CRITICAL FIX: Check if add_transaction returns None (validation failed)
     result = blockchain.add_transaction(
         tx_data["batch_id"],
         tx_data["action"],
@@ -208,11 +209,13 @@ def add_transaction():
         timestamp=tx_data.get("timestamp")
     )
 
+    # If result is None, validation or signature verification failed
     if result is None:
-        return jsonify({"error": "Invalid signature or validation failed"}), 401
+        return jsonify({"error": "Transaction validation failed or invalid signature"}), 400
 
+    # Broadcast successful transaction
     broadcast("/receive-transaction", tx_data)
-    return jsonify({"message": "Transaction added"}), 201
+    return jsonify({"message": "Transaction added", "transaction": result}), 201
 
 
 @app.route("/receive-transaction", methods=["POST"])
@@ -221,6 +224,7 @@ def receive_transaction():
     signature = tx_data.get("signature")
     public_key = tx_data.get("public_key")
 
+    # CRITICAL FIX: Check if add_transaction returns None
     result = blockchain.add_transaction(
         tx_data["batch_id"],
         tx_data["action"],
@@ -232,7 +236,7 @@ def receive_transaction():
     )
 
     if result is None:
-        return jsonify({"error": "Invalid signature or validation failed"}), 401
+        return jsonify({"error": "Transaction validation failed or invalid signature"}), 400
 
     return jsonify({"message": "Transaction received"}), 200
 
@@ -511,7 +515,7 @@ if __name__ == "__main__":
     print(f"🚀 BLOCKCHAIN NODE STARTING")
     print(f"{'=' * 60}")
     print(f"📍 Port: {PORT}")
-    print(f"🏠 Hostname: {blockchain.hostname}")  # Show hostname for debugging
+    print(f"🏠 Hostname: {blockchain.hostname}")
     print(f"💾 Database: {db_file}")
     print(f"⛏️  Difficulty: {blockchain.difficulty}")
     print(f"🔐 Cryptography: {'ENABLED' if blockchain.enable_crypto else 'DISABLED'}")
