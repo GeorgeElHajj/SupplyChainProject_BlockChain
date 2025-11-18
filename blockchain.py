@@ -3,6 +3,9 @@ import json
 import sqlite3
 import threading
 from datetime import datetime
+
+import requests
+
 from crypto_utils import CryptoManager, verify_transaction
 
 lock = threading.Lock()
@@ -309,6 +312,7 @@ class Blockchain:
             )
             new_block.hash = self.proof_of_work(new_block)
             self.chain.append(new_block.to_dict())
+            self.broadcast_block(new_block.to_dict())
 
             if self.db_file:
                 self._save_block_to_db(new_block)
@@ -460,6 +464,66 @@ class Blockchain:
 
                     history.append(tx_copy)
         return history
+
+    def broadcast_transaction(self, tx):
+        """Broadcast a single transaction to all nodes"""
+        for node in list(self.nodes):
+            try:
+                requests.post(f"{node}/receive-transaction", json=tx, timeout=3)
+            except:
+                print(f"⚠️ Failed to broadcast transaction to {node}")
+
+    def broadcast_block(self, block_dict):
+        """Broadcast newly mined block to all nodes"""
+        for node in list(self.nodes):
+            try:
+                requests.post(f"{node}/receive-block", json=block_dict, timeout=3)
+            except:
+                print(f"⚠️ Failed to broadcast block to {node}")
+
+    def accept_block(self, block_dict):
+        """Accept an incoming block from another node"""
+        new_block = Block.from_dict(block_dict)
+
+        # Validate previous hash matches
+        last_block = self.chain[-1]
+        if new_block.previous_hash != last_block["hash"]:
+            return False, "Previous hash mismatch"
+
+        # Validate PoW hash
+        if new_block.compute_hash() != new_block.hash:
+            return False, "Invalid block hash"
+
+        # Append
+        self.chain.append(new_block.to_dict())
+
+        # Clear local mempool
+        self.mempool = []
+        if self.db_file:
+            self._delete_mempool_db()
+
+        return True, "Block accepted"
+
+    def request_chain_from_peers(self):
+        """Pull chain from peers and replace if longer"""
+        my_len = len(self.chain)
+        best_chain = self.chain
+
+        for node in list(self.nodes):
+            try:
+                r = requests.get(f"{node}/chain", timeout=3)
+                remote = r.json().get("chain", [])
+                if len(remote) > my_len:
+                    valid, _ = self.is_chain_valid(remote)
+                    if valid:
+                        best_chain = remote
+            except:
+                continue
+
+        if best_chain != self.chain:
+            self.replace_chain(best_chain)
+            return True
+        return False
 
     # -------------------- Bootstrap --------------------
     def bootstrap(self):

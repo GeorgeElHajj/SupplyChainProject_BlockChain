@@ -206,13 +206,12 @@ def add_transaction():
         tx_data["metadata"],
         signature=signature,
         public_key=public_key,
-        timestamp=tx_data.get("timestamp")
+        timestamp=tx_data.get("timestamp"),
     )
 
     # If result is None, validation or signature verification failed
     if result is None:
         return jsonify({"error": "Transaction validation failed or invalid signature"}), 400
-
     # Broadcast successful transaction
     broadcast("/receive-transaction", tx_data)
     return jsonify({"message": "Transaction added", "transaction": result}), 201
@@ -254,19 +253,22 @@ def mine_block():
 def receive_block():
     data = request.get_json()
     new_block = Block.from_dict(data)
+
     with lock:
         last_block = blockchain.chain[-1]
+
+        # If chain mismatch → trigger network sync
         if last_block["hash"] != new_block.previous_hash:
             threading.Thread(target=sync_with_network, daemon=True).start()
             return jsonify({"message": "Chain out of sync. Resolving..."}), 409
-        elif new_block.hash != new_block.compute_hash():
-            return jsonify({"message": "Invalid block"}), 400
-        else:
-            blockchain.chain.append(new_block.to_dict())
-            blockchain.mempool = []
-            blockchain._delete_mempool_db()
-            return jsonify({"message": "Block accepted"}), 200
 
+        # Accept the block
+        success, msg = blockchain.accept_block(data)
+
+        if success:
+            return jsonify({"message": msg}), 200
+        else:
+            return jsonify({"message": msg}), 400
 
 @app.route("/chain", methods=["GET"])
 def get_chain():
