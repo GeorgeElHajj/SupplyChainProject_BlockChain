@@ -34,7 +34,7 @@ console.log(formData);
       };
 
       await api.addProduct(payload);
-      await api.mine(5000);
+      await api.mine();
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       setMessage('✅ Product added and block mined successfully!');

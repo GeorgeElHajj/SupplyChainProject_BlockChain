@@ -28,7 +28,7 @@ function QualityCheck() {
 
     try {
       await api.qualityCheck(formData);
-      await api.mine(5000);
+      await api.mine();
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       setMessage('✅ Quality check recorded and block mined!');

@@ -33,7 +33,7 @@ function DeliverToRetailer() {
 
     try {
       await api.deliver(formData);
-      await api.mine(5001);
+      await api.mine();
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       setMessage('✅ Delivery recorded and block mined!');

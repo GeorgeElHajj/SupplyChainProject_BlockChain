@@ -33,7 +33,7 @@ function ShipProduct() {
 
     try {
       await api.ship(formData);
-      await api.mine(5000);
+      await api.mine();
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       setMessage('✅ Shipment recorded and block mined!');

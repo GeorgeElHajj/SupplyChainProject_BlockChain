@@ -33,7 +33,7 @@ function RetailerReceive() {
 
     try {
       await api.receiveRetail(formData);
-      await api.mine(5002);
+      await api.mine();
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       setMessage('✅ Reception recorded and block mined!');

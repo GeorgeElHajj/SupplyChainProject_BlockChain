@@ -28,7 +28,7 @@ function SellProduct() {
 
     try {
       await api.sell(formData);
-      await api.mine(5002);
+      await api.mine();
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       setMessage('✅ Sale recorded and block mined!');

@@ -21,12 +21,12 @@ function TrackBatch() {
 
     try {
       // Get history
-      const historyResponse = await api.getHistory(batchId);
-      setHistory(historyResponse.data);
+     const historyResponse = await api.getBlockchainHistory(batchId);
+setHistory(historyResponse);
 
-      // Get verification
-      const verifyResponse = await api.verify(batchId);
-      setVerification(verifyResponse.data);
+const verifyResponse = await api.verifyBlockchainBatch(batchId);
+setVerification(verifyResponse);
+
     } catch (err) {
       setError('Batch not found or error occurred');
       console.error(err);
