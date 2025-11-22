@@ -4,6 +4,7 @@ import requests
 import time
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from election import detect_master
 
 from blockchain import Blockchain, Block
 from crypto_utils import create_signed_transaction
@@ -189,16 +190,39 @@ def register_with_bootstrap_nodes():
 # ------------------ ROUTES (FIXED) ------------------
 @app.route("/add-transaction", methods=["POST"])
 def add_transaction():
+    # Determine MASTER at this moment
+    master = detect_master(blockchain.hostname, len(blockchain.chain))
+    if blockchain.hostname != master:
+        print(f"❌ BLOCKED — Node {blockchain.hostname} is FOLLOWER, master = {master}")
+        return jsonify({"error": f"Follower node. Master is {master}"}), 403
+
     tx_data = request.get_json()
     required = ["batch_id", "action", "actor", "metadata"]
     if not all(k in tx_data for k in required):
         return jsonify({"error": "Missing transaction fields"}), 400
 
-    # Extract signature if present
+    # ========== ADD THIS CHECK (CRITICAL!) ==========
+    # CRITICAL FIX: Check if already exists BEFORE adding
+    batch_id = tx_data["batch_id"]
+    action = tx_data["action"]
+    timestamp = tx_data.get("timestamp")
+
+    # Check blockchain
+    history = blockchain.get_history(batch_id)
+    if any(tx["action"] == action and tx.get("timestamp") == timestamp for tx in history):
+        print(f"⚠️  Transaction already in blockchain: {action} for {batch_id}")
+        return jsonify({"error": "Transaction already exists", "message": "Duplicate detected"}), 409
+
+    # Check mempool
+    if any(tx["batch_id"] == batch_id and tx["action"] == action and tx.get("timestamp") == timestamp
+           for tx in blockchain.mempool):
+        print(f"⚠️  Transaction already in mempool: {action} for {batch_id}")
+        return jsonify({"error": "Transaction already pending", "message": "Duplicate detected"}), 409
+    # ========== END OF CHECK ==========
+
     signature = tx_data.get("signature")
     public_key = tx_data.get("public_key")
 
-    # CRITICAL FIX: Check if add_transaction returns None (validation failed)
     result = blockchain.add_transaction(
         tx_data["batch_id"],
         tx_data["action"],
@@ -209,21 +233,41 @@ def add_transaction():
         timestamp=tx_data.get("timestamp"),
     )
 
-    # If result is None, validation or signature verification failed
     if result is None:
-        return jsonify({"error": "Transaction validation failed or invalid signature"}), 400
-    # Broadcast successful transaction
+        return jsonify({"error": "Transaction validation failed"}), 400
+
     broadcast("/receive-transaction", tx_data)
-    return jsonify({"message": "Transaction added", "transaction": result}), 201
-
-
+    return jsonify({"message": "Transaction added"}), 201
 @app.route("/receive-transaction", methods=["POST"])
 def receive_transaction():
+    master = detect_master(blockchain.hostname, len(blockchain.chain))
     tx_data = request.get_json()
+
+    batch_id = tx_data.get("batch_id")
+    action = tx_data.get("action")
+    timestamp = tx_data.get("timestamp")
+
+    # Check if already in blockchain
+    history = blockchain.get_history(batch_id)
+    if any(tx["action"] == action and tx.get("timestamp") == timestamp for tx in history):
+        print(f"ℹ️ Transaction already in blockchain, skipping: {action} for {batch_id}")
+        return jsonify({"message": "Transaction already exists"}), 200
+
+    # Check if already in mempool
+    if any(tx["batch_id"] == batch_id and tx["action"] == action and tx.get("timestamp") == timestamp
+           for tx in blockchain.mempool):
+        print(f"ℹ️ Transaction already in mempool, skipping: {action} for {batch_id}")
+        return jsonify({"message": "Transaction already pending"}), 200
+
+    # CRITICAL FIX: Followers DON'T add to mempool, they wait for the block
+    if blockchain.hostname != master:
+        print(f"ℹ️ Follower {blockchain.hostname} acknowledged transaction (waiting for block)")
+        return jsonify({"message": "Transaction acknowledged by follower"}), 200
+
+    # Only master adds to mempool
     signature = tx_data.get("signature")
     public_key = tx_data.get("public_key")
 
-    # CRITICAL FIX: Check if add_transaction returns None
     result = blockchain.add_transaction(
         tx_data["batch_id"],
         tx_data["action"],
@@ -235,18 +279,22 @@ def receive_transaction():
     )
 
     if result is None:
-        return jsonify({"error": "Transaction validation failed or invalid signature"}), 400
+        return jsonify({"error": "Invalid replicated transaction"}), 400
 
+    print(f"✅ Master added transaction to mempool: {action} for {batch_id}")
     return jsonify({"message": "Transaction received"}), 200
-
-
 @app.route("/mine", methods=["POST"])
 def mine_block():
+    master = detect_master(blockchain.hostname, len(blockchain.chain))
+    if blockchain.hostname != master:
+        return jsonify({"error": "Only master can mine"}), 403
+
     block = blockchain.mine_block()
     if not block:
         return jsonify({"message": "No transactions to mine"}), 400
+
     broadcast("/receive-block", block.to_dict())
-    return jsonify({"message": "Block mined successfully", "block": block.to_dict()}), 201
+    return jsonify({"message": "Block mined", "block": block.to_dict()}), 201
 
 
 @app.route("/receive-block", methods=["POST"])
@@ -270,16 +318,32 @@ def receive_block():
         else:
             return jsonify({"message": msg}), 400
 
+
 @app.route("/chain", methods=["GET"])
 def get_chain():
+    """
+    Get the entire blockchain.
+
+    FIXED: Handles both Block objects and dicts (when loaded from database)
+    """
     valid, msg = blockchain.is_chain_valid()
+
+    # Handle both Block objects and dicts
+    chain_data = []
+    for block in blockchain.chain:
+        if isinstance(block, dict):
+            # Already a dict (loaded from DB)
+            chain_data.append(block)
+        else:
+            # Block object, convert to dict
+            chain_data.append(block.to_dict())
+
     return jsonify({
+        "chain": chain_data,
         "length": len(blockchain.chain),
         "valid": valid,
-        "message": msg,
-        "chain": blockchain.chain
+        "message": msg
     }), 200
-
 
 @app.route("/mempool", methods=["GET"])
 def get_mempool():

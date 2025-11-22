@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir \
 COPY blockchain.py .
 COPY blockchain_service.py .
 COPY crypto_utils.py .
-
+COPY election.py .
 # Copy keys directory (if exists)
 COPY keys/ ./keys/
 

@@ -42,7 +42,7 @@ services:
     environment:
       - PORT=5000
       - DIFFICULTY=2
-    command: ["--port", "5000", "--hostname", "blockchain2", "--difficulty", "2", "--bootstrap", "http://blockchain1:5000"]
+    command: ["--port", "5000", "--hostname", "blockchain2", "--difficulty", "2", "--bootstrap", "http://blockchain1:5000", "--no-auto-mine"]
     networks:
       - supply_chain_network
     depends_on:
@@ -69,7 +69,7 @@ services:
     environment:
       - PORT=5000
       - DIFFICULTY=2
-    command: ["--port", "5000", "--hostname", "blockchain3", "--difficulty", "2", "--bootstrap", "http://blockchain1:5000,http://blockchain2:5000"]
+    command: ["--port", "5000", "--hostname", "blockchain3", "--difficulty", "2", "--bootstrap", "http://blockchain1:5000,http://blockchain2:5000", "--no-auto-mine"]
     networks:
       - supply_chain_network
     depends_on:

@@ -61,6 +61,9 @@ class Blockchain:
         self.bootstrap_nodes = bootstrap_nodes or []
         self.max_mempool_size = max_mempool_size
 
+        # CRITICAL FIX: Add current_metadata for validation
+        self.current_metadata = {}
+
         # NEW: Cryptographic security
         self.enable_crypto = enable_crypto
         self.crypto_manager = CryptoManager() if enable_crypto else None
@@ -193,9 +196,6 @@ class Blockchain:
         # ALSO check MEMPOOL for pending transactions (not yet mined)
         mempool_actions = [tx['action'] for tx in self.mempool if tx['batch_id'] == batch_id]
 
-        # Combine both sources
-        all_actions = existing_actions + mempool_actions
-
         # Define STRICT sequential order - each step requires the EXACT previous step
         strict_sequence = {
             'registered': None,  # Step 1: Can always register (no prerequisite)
@@ -208,16 +208,22 @@ class Blockchain:
             'sold': 'received_retail'  # Step 8: Must have Step 7
         }
 
-        # Check for duplicate actions (in both blockchain and mempool)
-        if action in all_actions:
+        # CRITICAL FIX: Check for duplicate actions ONLY in blockchain (not mempool)
+        # Mempool can be cleared by mining, so checking it can cause race conditions
+        if action in existing_actions:
             return False, f"Action '{action}' already performed for batch {batch_id}"
+
+        # ALSO check mempool to prevent adding duplicate pending transactions
+        if action in mempool_actions:
+            return False, f"Action '{action}' is already pending in mempool for batch {batch_id}"
 
         # Validate action is in the allowed sequence
         if action not in strict_sequence:
             return False, f"Invalid action '{action}'. Not in allowed sequence."
 
-        # Check if prerequisite is met
+        # Check if prerequisite is met (check BOTH blockchain and mempool)
         required_previous = strict_sequence[action]
+        all_actions = existing_actions + mempool_actions
 
         if required_previous is not None:
             # EXACT previous step MUST exist
@@ -228,6 +234,138 @@ class Blockchain:
         return True, "Valid transaction"
 
     # -------------------- Transactions (WITH SIGNATURE VERIFICATION) --------------------
+    def validate_actor_permissions(self, batch_id, action, actor):
+        """
+        Enforces:
+        - Supplier consistency
+        - Distributor consistency
+        - Retailer consistency
+        - SHIPPED -> RECEIVED matching (both supplier & distributor)
+        - DELIVERED -> RECEIVED_RETAIL matching (both distributor & retailer)
+        """
+
+        history = self.get_history(batch_id)
+
+        # Required roles for each action:
+        actor_roles = {
+            "registered": "supplier",
+            "quality_checked": "supplier",
+            "shipped": "supplier",
+            "received": "distributor",
+            "stored": "distributor",
+            "delivered": "distributor",
+            "received_retail": "retailer",
+            "sold": "retailer",
+        }
+
+        # 1 — Unknown action?
+        if action not in actor_roles:
+            return False, f"Unknown action '{action}'"
+
+        expected_role = actor_roles[action]
+
+        # 2 — First action must be "registered"
+        if action == "registered":
+            if not actor.lower().startswith("supplier"):
+                return False, "Only suppliers can register batches"
+            return True, "OK"
+
+        # 3 — Batch must already exist after registration
+        if not history:
+            return False, f"Batch {batch_id} does not exist yet"
+
+        # 4 — Determine current owner (last actor)
+        last_actor = history[-1]["actor"]
+
+        if last_actor.lower().startswith("supplier"):
+            owner_role = "supplier"
+        elif last_actor.lower().startswith("distributor"):
+            owner_role = "distributor"
+        elif last_actor.lower().startswith("retailer"):
+            owner_role = "retailer"
+        else:
+            return False, f"Unknown previous actor '{last_actor}'"
+
+        # 5 — Role of current action must match actor type
+        if not actor.lower().startswith(expected_role):
+            return False, f"'{actor}' is not a valid {expected_role} for action '{action}'"
+
+        # 6 — SAME-ACTOR restriction inside group stages
+        group_actions = {
+            "supplier": {"registered", "quality_checked", "shipped"},
+            "distributor": {"received", "stored", "delivered"},
+            "retailer": {"received_retail", "sold"}
+        }
+
+        if action in group_actions.get(owner_role, set()):
+            if actor != last_actor:
+                return False, (
+                    f"Ownership violation: '{actor}' cannot perform '{action}'. "
+                    f"Current owner is '{last_actor}'."
+                )
+
+        # -------------------------------------------------------------------------------------------------------
+        # 7 — STRICT CHECK: SHIPPED → RECEIVED (FIXED)
+        # -------------------------------------------------------------------------------------------------------
+        if action == "received":
+            shipped = next((tx for tx in history if tx["action"] == "shipped"), None)
+            if shipped is None:
+                return False, "Batch must be shipped first"
+
+            # Extract from shipment metadata
+            shipped_from = shipped["actor"]  # Supplier who performed the action
+            shipped_to = shipped.get("metadata", {}).get("to")  # Intended distributor recipient
+
+            # The current metadata should have "from" field
+            current_from = self.current_metadata.get("from")
+
+            # VALIDATION:
+            # 1. The distributor receiving MUST match the "to" in shipment
+            if shipped_to and actor != shipped_to:
+                return False, (
+                    f"Invalid receiver. Shipment was sent to '{shipped_to}', "
+                    f"but '{actor}' is trying to receive it."
+                )
+
+            # 2. The "from" in receive metadata MUST match the supplier who shipped
+            if current_from and current_from != shipped_from:
+                return False, (
+                    f"Invalid supplier in receive metadata. Shipment came from '{shipped_from}', "
+                    f"but receive form says '{current_from}'."
+                )
+
+        # -------------------------------------------------------------------------------------------------------
+        # 8 — STRICT CHECK: DELIVERED → RECEIVED_RETAIL (FIXED)
+        # -------------------------------------------------------------------------------------------------------
+        if action == "received_retail":
+            delivered = next((tx for tx in history if tx["action"] == "delivered"), None)
+            if delivered is None:
+                return False, "Batch must be delivered before retailer can receive"
+
+            # Extract from delivery metadata
+            delivered_from = delivered["actor"]  # Distributor who performed the action
+            delivered_to = delivered.get("metadata", {}).get("to")  # Intended retailer recipient
+
+            # The current metadata should have "from" field
+            current_from = self.current_metadata.get("from")
+
+            # VALIDATION:
+            # 1. The retailer receiving MUST match the "to" in delivery
+            if delivered_to and actor != delivered_to:
+                return False, (
+                    f"Invalid receiver. Delivery was made to '{delivered_to}', "
+                    f"but '{actor}' is trying to receive it."
+                )
+
+            # 2. The "from" in receive metadata MUST match the distributor who delivered
+            if current_from and current_from != delivered_from:
+                return False, (
+                    f"Invalid distributor in receive metadata. Delivery was sent from '{delivered_from}', "
+                    f"but receive form says '{current_from}'."
+                )
+
+        return True, "OK"
+
     def add_transaction(self, batch_id, action, actor, metadata, signature=None, public_key=None, timestamp=None):
         """
         Add transaction with optional signature verification and business logic validation.
@@ -268,6 +406,14 @@ class Blockchain:
             print(f"❌ Transaction validation failed: {msg}")
             return None
 
+        # CRITICAL FIX: Store metadata temporarily for validation
+        self.current_metadata = metadata
+
+        ok, actor_msg = self.validate_actor_permissions(batch_id, action, actor)
+        if not ok:
+            print(f"❌ Permission error: {actor_msg}")
+            return None
+
         # STEP 2: Verify signature if present
         if self.enable_crypto and signature:
             if not verify_transaction(tx, self.crypto_manager):
@@ -303,11 +449,31 @@ class Blockchain:
         with lock:
             if not self.mempool:
                 return None
+
+            # CRITICAL FIX: Filter out transactions that are already in blockchain
+            valid_mempool = []
+            for tx in self.mempool:
+                batch_id = tx.get("batch_id")
+                action = tx.get("action")
+                timestamp = tx.get("timestamp")
+
+                # Check if already in blockchain
+                history = self.get_history(batch_id)
+                if any(h["action"] == action and h.get("timestamp") == timestamp for h in history):
+                    print(f"🗑️ Removing duplicate from mempool before mining: {action} for {batch_id}")
+                    continue
+
+                valid_mempool.append(tx)
+
+            if not valid_mempool:
+                print("⚠️  No valid transactions to mine (all duplicates)")
+                return None
+
             last_block = self.chain[-1]
             new_block = Block(
                 index=last_block["index"] + 1,
                 timestamp=datetime.utcnow().isoformat(),
-                transactions=self.mempool.copy(),
+                transactions=valid_mempool,  # Use filtered mempool!
                 previous_hash=last_block["hash"]
             )
             new_block.hash = self.proof_of_work(new_block)
@@ -324,7 +490,6 @@ class Blockchain:
             self.mempool = []
 
         return new_block
-
     def replace_chain(self, new_chain):
         """Replace the entire chain with a new one"""
         self.chain = [b.to_dict() if isinstance(b, Block) else b for b in new_chain]
@@ -494,13 +659,47 @@ class Blockchain:
         if new_block.compute_hash() != new_block.hash:
             return False, "Invalid block hash"
 
+        # ========== ADD THIS: Check for duplicate transactions ==========
+        for tx in new_block.transactions:
+            batch_id = tx.get("batch_id")
+            action = tx.get("action")
+            timestamp = tx.get("timestamp")
+
+            # Check if this EXACT transaction already exists in blockchain
+            history = self.get_history(batch_id)
+            if any(h["action"] == action and h.get("timestamp") == timestamp for h in history):
+                print(f"⚠️  Rejecting block with duplicate transaction: {action} for {batch_id}")
+                return False, f"Block contains duplicate transaction: {action} for {batch_id}"
+        # ========== END ADD ==========
         # Append
         self.chain.append(new_block.to_dict())
 
-        # Clear local mempool
-        self.mempool = []
+        # CRITICAL FIX: Only remove transactions that were INCLUDED in this block
+        # Keep other pending transactions in mempool
+        mined_transactions = set()
+        for tx in new_block.transactions:
+            tx_sig = f"{tx['batch_id']}_{tx['action']}_{tx.get('timestamp', '')}"
+            mined_transactions.add(tx_sig)
+
+        # Filter mempool to keep only transactions NOT in this block
+        new_mempool = []
+        for tx in self.mempool:
+            tx_sig = f"{tx['batch_id']}_{tx['action']}_{tx.get('timestamp', '')}"
+            if tx_sig not in mined_transactions:
+                new_mempool.append(tx)
+            else:
+                print(f"🗑️ Removing mined transaction from mempool: {tx['action']} for {tx['batch_id']}")
+
+        self.mempool = new_mempool
+
+        # Update database if using DB
         if self.db_file:
+            # Clear and re-save mempool
             self._delete_mempool_db()
+            for tx in self.mempool:
+                self._save_tx_to_db(tx)
+
+        print(f"✅ Block accepted. Mempool now has {len(self.mempool)} pending transactions")
 
         return True, "Block accepted"
 
