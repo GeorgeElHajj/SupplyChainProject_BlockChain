@@ -1,0 +1,60 @@
+[
+  {
+    "ContainingType": "RetailerAPI.Controllers.RetailerController",
+    "Method": "Health",
+    "RelativePath": "api/Retailer/health",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "RetailerAPI.Controllers.RetailerController",
+    "Method": "Receive",
+    "RelativePath": "api/Retailer/receive",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "RetailerAPI.DTOs.ReceiveRetailDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "RetailerAPI.Controllers.RetailerController",
+    "Method": "Sold",
+    "RelativePath": "api/Retailer/sold",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "RetailerAPI.DTOs.SaleDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "RetailerAPI.Controllers.RetailerController",
+    "Method": "Verify",
+    "RelativePath": "api/Retailer/verify/{batchId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "batchId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  }
+]
