@@ -1,0 +1,76 @@
+[
+  {
+    "ContainingType": "SupplierAPI.Controllers.SupplierController",
+    "Method": "AddProduct",
+    "RelativePath": "api/Supplier/add-product",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "SupplierAPI.DTOs.ProductDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SupplierAPI.Controllers.SupplierController",
+    "Method": "Health",
+    "RelativePath": "api/Supplier/health",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SupplierAPI.Controllers.SupplierController",
+    "Method": "History",
+    "RelativePath": "api/Supplier/history/{batchId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "batchId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SupplierAPI.Controllers.SupplierController",
+    "Method": "QualityCheck",
+    "RelativePath": "api/Supplier/quality-check",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "SupplierAPI.DTOs.QualityCheckDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SupplierAPI.Controllers.SupplierController",
+    "Method": "Ship",
+    "RelativePath": "api/Supplier/ship",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "DistributorAPI.DTOs.ShipDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  }
+]

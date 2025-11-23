@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "D+XGPSHw0T26barr8UC5IhKyGXfBSPmnYPka8IgQ5s0=",
+  "Source": "SupplierAPI",
+  "BasePath": "_content/SupplierAPI",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}
