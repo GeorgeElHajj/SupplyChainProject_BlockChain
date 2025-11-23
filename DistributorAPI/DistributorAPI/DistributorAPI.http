@@ -1,0 +1,6 @@
+@DistributorAPI_HostAddress = http://localhost:5137
+
+GET {{DistributorAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

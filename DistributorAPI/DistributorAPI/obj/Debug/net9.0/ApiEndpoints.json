@@ -1,0 +1,60 @@
+[
+  {
+    "ContainingType": "DistributorAPI.Controllers.DistributorController",
+    "Method": "Deliver",
+    "RelativePath": "api/Distributor/deliver",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "DistributorAPI.DTOs.DeliverDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "DistributorAPI.Controllers.DistributorController",
+    "Method": "Health",
+    "RelativePath": "api/Distributor/health",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "DistributorAPI.Controllers.DistributorController",
+    "Method": "Receive",
+    "RelativePath": "api/Distributor/receive",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "DistributorAPI.DTOs.ReceiveDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "DistributorAPI.Controllers.DistributorController",
+    "Method": "Store",
+    "RelativePath": "api/Distributor/store",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "DistributorAPI.DTOs.StoreDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "ndMe6F9p5yYCgM2R2GXYyG1uebEYNXBMXilaC8Omw8E=",
+  "Source": "DistributorAPI",
+  "BasePath": "_content/DistributorAPI",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}
