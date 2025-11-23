@@ -19,6 +19,7 @@ lock = threading.Lock()
 
 blockchain = None
 PORT = None
+node_ready = False  # CRITICAL: Track if node is ready to accept transactions
 
 
 # ------------------ UTILITIES ------------------
@@ -148,6 +149,8 @@ def sync_with_network():
 
 def register_with_bootstrap_nodes():
     """Register this node with all bootstrap nodes"""
+    global node_ready
+
     time.sleep(2)
 
     my_address = get_my_address()
@@ -186,26 +189,86 @@ def register_with_bootstrap_nodes():
     sync_with_network()
     print(f"✅ Node ready! Connected to {len(blockchain.nodes)} peers\n")
 
+    # CRITICAL: Mark node as ready after sync
+    node_ready = True
+
 
 # ------------------ ROUTES (FIXED) ------------------
 @app.route("/add-transaction", methods=["POST"])
 def add_transaction():
+    # CRITICAL: Check if node is ready
+    if not node_ready:
+        print(f"⚠️  Node not ready yet, still syncing...")
+        return jsonify({
+            "error": "Node not ready",
+            "message": "Node is still syncing with the network. Please try again in a few seconds."
+        }), 503
+
+    # ADD LOGGING AT THE VERY TOP
+    print(f"📨 Received add-transaction request from {request.remote_addr}")
+
     # Determine MASTER at this moment
     master = detect_master(blockchain.hostname, len(blockchain.chain))
+
+    print(f"🔍 Master election:")
+    print(f"   Current node: {blockchain.hostname}")
+    print(f"   Detected master: {master}")
+
     if blockchain.hostname != master:
-        print(f"❌ BLOCKED — Node {blockchain.hostname} is FOLLOWER, master = {master}")
-        return jsonify({"error": f"Follower node. Master is {master}"}), 403
+        print(f"ℹ️  Node {blockchain.hostname} is FOLLOWER, redirecting to master {master}")
+
+        # Forward the request to the master
+        try:
+            tx_data = request.get_json()
+            print(f"🔄 Forwarding transaction: {tx_data.get('action')} for {tx_data.get('batch_id')}")
+
+            response = requests.post(
+                f"http://{master}:5000/add-transaction",
+                json=tx_data,
+                timeout=5
+            )
+
+            # CRITICAL: Check if the forward succeeded
+            if response.status_code >= 200 and response.status_code < 300:
+                print(f"✅ Successfully forwarded to master {master}")
+                return jsonify(response.json()), response.status_code
+            else:
+                # Master rejected it, return the error
+                print(f"⚠️  Master {master} rejected: {response.status_code}")
+                try:
+                    return jsonify(response.json()), response.status_code
+                except:
+                    return jsonify({"error": f"Master rejected transaction: {response.text}"}), response.status_code
+
+        except requests.exceptions.Timeout:
+            print(f"❌ Timeout forwarding to master {master}")
+            return jsonify({"error": f"Master node {master} is not responding (timeout)"}), 503
+        except requests.exceptions.ConnectionError as e:
+            print(f"❌ Cannot connect to master {master}: {e}")
+            return jsonify({"error": f"Master node {master} is not available"}), 503
+        except Exception as e:
+            print(f"❌ Failed to forward to master: {e}")
+            return jsonify({"error": f"Failed to forward to master {master}: {str(e)}"}), 503
+
+    # === MASTER NODE LOGIC ===
+    print(f"👑 Processing as MASTER node")
 
     tx_data = request.get_json()
+    print(f"📦 Transaction data received: {tx_data}")
+
     required = ["batch_id", "action", "actor", "metadata"]
     if not all(k in tx_data for k in required):
-        return jsonify({"error": "Missing transaction fields"}), 400
+        missing = [k for k in required if k not in tx_data]
+        print(f"❌ Missing required fields: {missing}")
+        print(f"   Received keys: {list(tx_data.keys())}")
+        return jsonify({"error": f"Missing transaction fields: {missing}"}), 400
 
-    # ========== ADD THIS CHECK (CRITICAL!) ==========
-    # CRITICAL FIX: Check if already exists BEFORE adding
+    # Check if already exists BEFORE adding
     batch_id = tx_data["batch_id"]
     action = tx_data["action"]
     timestamp = tx_data.get("timestamp")
+
+    print(f"🔍 Checking for duplicates: {action} for {batch_id}")
 
     # Check blockchain
     history = blockchain.get_history(batch_id)
@@ -218,10 +281,13 @@ def add_transaction():
            for tx in blockchain.mempool):
         print(f"⚠️  Transaction already in mempool: {action} for {batch_id}")
         return jsonify({"error": "Transaction already pending", "message": "Duplicate detected"}), 409
-    # ========== END OF CHECK ==========
 
     signature = tx_data.get("signature")
     public_key = tx_data.get("public_key")
+
+    print(f"🔐 Adding transaction to blockchain...")
+    print(f"   - Has signature: {signature is not None}")
+    print(f"   - Has public_key: {public_key is not None}")
 
     result = blockchain.add_transaction(
         tx_data["batch_id"],
@@ -234,10 +300,26 @@ def add_transaction():
     )
 
     if result is None:
+        print(f"❌ Transaction validation failed")
+
+        # Check if it's because action already exists (better error message)
+        history = blockchain.get_history(batch_id)
+        if any(tx["action"] == action for tx in history):
+            return jsonify({
+                "error": "Action already performed",
+                "message": f"Action '{action}' has already been completed for batch '{batch_id}'"
+            }), 409
+
         return jsonify({"error": "Transaction validation failed"}), 400
 
+    print(f"✅ Transaction added to mempool: {action} for {batch_id}")
+    print(f"📢 Broadcasting to network...")
+
     broadcast("/receive-transaction", tx_data)
+
     return jsonify({"message": "Transaction added"}), 201
+
+
 @app.route("/receive-transaction", methods=["POST"])
 def receive_transaction():
     master = detect_master(blockchain.hostname, len(blockchain.chain))
@@ -283,6 +365,8 @@ def receive_transaction():
 
     print(f"✅ Master added transaction to mempool: {action} for {batch_id}")
     return jsonify({"message": "Transaction received"}), 200
+
+
 @app.route("/mine", methods=["POST"])
 def mine_block():
     master = detect_master(blockchain.hostname, len(blockchain.chain))
@@ -344,6 +428,7 @@ def get_chain():
         "valid": valid,
         "message": msg
     }), 200
+
 
 @app.route("/mempool", methods=["GET"])
 def get_mempool():
@@ -416,7 +501,8 @@ def get_status():
         "peers": len(blockchain.nodes),
         "difficulty": blockchain.difficulty,
         "crypto_enabled": blockchain.enable_crypto,
-        "status": "healthy"
+        "ready": node_ready,  # CRITICAL: Include ready status
+        "status": "healthy" if node_ready else "syncing"
     }), 200
 
 
@@ -599,6 +685,11 @@ if __name__ == "__main__":
         print(f"   🔧 Will attempt auto-repair on next sync cycle")
 
     print(f"{'=' * 60}\n")
+
+    # CRITICAL: If standalone (no bootstrap), mark as ready immediately
+    if not bootstrap_nodes:
+        node_ready = True
+        print("✅ Standalone node ready immediately\n")
 
     # Start background daemons
     threading.Thread(target=periodic_consensus, daemon=True).start()
