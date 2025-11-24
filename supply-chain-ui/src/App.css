@@ -2698,3 +2698,144 @@ body {
     grid-template-columns: 1fr;
   }
 }
+/* Nodes Status Section */
+.nodes-status {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin: 24px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.nodes-status h2 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.nodes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.node-card {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  border-radius: 10px;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+
+.node-card.healthy {
+  border-color: #28a745;
+  background: #f0fff4;
+}
+
+.node-card.unhealthy {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+
+.node-card.active {
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+  border-color: #007bff;
+}
+
+.node-card.active.healthy {
+  border-color: #007bff;
+}
+
+.node-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.node-name {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.node-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.active-badge {
+  background: #007bff;
+  color: white;
+}
+
+.node-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.node-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.node-label {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.node-value {
+  font-size: 0.9rem;
+  color: #495057;
+  font-family: 'Courier New', monospace;
+}
+
+.node-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.status-healthy {
+  color: #28a745;
+}
+
+.status-down {
+  color: #dc3545;
+}
+
+.nodes-summary {
+  background: #e9ecef;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.nodes-summary p {
+  margin: 8px 0;
+  color: #495057;
+  font-size: 0.95rem;
+}
+
+.nodes-summary strong {
+  color: #2c3e50;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .nodes-grid {
+    grid-template-columns: 1fr;
+  }
+}
