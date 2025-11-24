@@ -8,28 +8,38 @@ function Dashboard() {
     message: '',
     recentBlocks: []
   });
+  const [nodeInfo, setNodeInfo] = useState({
+    currentNode: 0,
+    nodeHealth: [true, true, true]
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadChainInfo();
-    const interval = setInterval(loadChainInfo, 10000); // Refresh every 10s
+    loadDashboardData();
+    const interval = setInterval(loadDashboardData, 10000); // Refresh every 10s
     return () => clearInterval(interval);
   }, []);
 
-  const loadChainInfo = async () => {
+  const loadDashboardData = async () => {
     try {
-      // The /chain endpoint returns { chain: [...], length: 1, valid: true, message: "..." }
+      // Load chain info
       const response = await api.getChain();
-
-      // Handle the response structure
       const data = response.data || response;
 
       setChainInfo({
         length: data.length || 0,
         valid: data.valid || false,
         message: data.message || 'Unknown',
-        recentBlocks: (data.chain || []).slice(-5).reverse() // Last 5 blocks, newest first
+        recentBlocks: (data.chain || []).slice(-5).reverse()
       });
+
+      // Load node info
+      const currentNodeData = api.getCurrentNode();
+      setNodeInfo({
+        currentNode: currentNodeData.index,
+        nodeHealth: currentNodeData.health
+      });
+
       setLoading(false);
     } catch (error) {
       console.error('Failed to load chain:', error);
@@ -41,6 +51,11 @@ function Dashboard() {
       });
       setLoading(false);
     }
+  };
+
+  const getNodePort = (index) => {
+    const ports = [5000, 5001, 5002];
+    return ports[index];
   };
 
   if (loading) {
@@ -83,6 +98,50 @@ function Dashboard() {
             <h3>Total Blocks</h3>
             <p className="stat-value">{chainInfo.length}</p>
           </div>
+        </div>
+      </div>
+
+      {/* Blockchain Nodes Status */}
+      <div className="nodes-status">
+        <h2>🖥️ Blockchain Nodes</h2>
+        <div className="nodes-grid">
+          {nodeInfo.nodeHealth.map((isHealthy, index) => (
+            <div
+              key={index}
+              className={`node-card ${isHealthy ? 'healthy' : 'unhealthy'} ${index === nodeInfo.currentNode ? 'active' : ''}`}
+            >
+              <div className="node-header">
+                <span className="node-name">Node {index}</span>
+                {index === nodeInfo.currentNode && (
+                  <span className="node-badge active-badge">ACTIVE</span>
+                )}
+              </div>
+              <div className="node-body">
+                <div className="node-info">
+                  <span className="node-label">Port:</span>
+                  <span className="node-value">{getNodePort(index)}</span>
+                </div>
+                <div className="node-info">
+                  <span className="node-label">Status:</span>
+                  <span className={`node-status ${isHealthy ? 'status-healthy' : 'status-down'}`}>
+                    {isHealthy ? '🟢 Healthy' : '🔴 Down'}
+                  </span>
+                </div>
+                <div className="node-info">
+                  <span className="node-label">URL:</span>
+                  <span className="node-value">localhost:{getNodePort(index)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="nodes-summary">
+          <p>
+            <strong>Active Nodes:</strong> {nodeInfo.nodeHealth.filter(h => h).length} / {nodeInfo.nodeHealth.length}
+          </p>
+          <p>
+            <strong>Primary Node:</strong> Node {nodeInfo.currentNode} (Port {getNodePort(nodeInfo.currentNode)})
+          </p>
         </div>
       </div>
 
@@ -132,7 +191,7 @@ function Dashboard() {
       </div>
 
       <div className="dashboard-actions">
-        <button onClick={loadChainInfo} className="btn-secondary">
+        <button onClick={loadDashboardData} className="btn-secondary">
           🔄 Refresh
         </button>
       </div>
